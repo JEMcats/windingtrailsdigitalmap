@@ -4,33 +4,5 @@
     "an": "example",
     "of": "a",
     "report": -1
-  },
-  {
-    "name": "This is a test report i am sending, with any luck this will be picked up by my script and uploaded to github!",
-    "coords": [
-      41.75605068134517,
-      -72.84864127635957
-    ]
-  },
-  {
-    "name": "hope this syncs to github!",
-    "coords": [
-      41.74714809017875,
-      -72.84809142351152
-    ]
-  },
-  {
-    "name": "Another Report That Will Hopefully Make It's Way to Github!",
-    "coords": [
-      41.74714809017875,
-      -72.84809142351152
-    ]
-  },
-  {
-    "name": "This time is the charm?",
-    "coords": [
-      41.74714809017875,
-      -72.84809142351152
-    ]
   }
 ]
