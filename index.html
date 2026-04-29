@@ -37,8 +37,13 @@
     <script>
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+        const isStandalone = window.navigator.standalone === true;
 
-        if (!isIOS && !isIPadOS) {
+        // If running as installed app, go straight to map
+        if (isStandalone) {
+            window.location.replace('map.html');
+        } else if (!isIOS && !isIPadOS) {
+            // Not iOS at all, also go to map
             window.location.replace('map.html');
         }
     </script>
