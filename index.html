@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="LaPierre Trails">
+    <link rel="icon" href="https://www.windingtrails.org/images/favicon.png" type="image/png" />
+    <link rel="manifest" href="manifest.webmanifest">
+    <!-- Icon for iOS home screen -->
+    <link rel="apple-touch-icon" href="https://www.windingtrails.org/images/favicon.png">
+    <title>Winding Trails | Map</title>
+    <link rel="stylesheet" href="src/leaflet.css" />
+    <link rel="stylesheet" href="src/leaflet.label.css" />
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100vw;
+            /* 100% of viewport width */
+            transition: transform 0.3s;
+            /* Smooth transition for rotation */
+            z-index: 1;
+            margin: 0;
+            /* Remove default margin */
+        }
+
+        .poiLabel {
+            background: none;
+            border: none;
+            color: black;
+            /* Adjust text color if needed */
+            white-space: nowrap;
+            box-shadow: none;
+            text-align: center;
+        }
+
+        button {
+            border-radius: 10px;
+            border: none;
+            transition: 0.5s ease transform;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: url('assets/target.svg');
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        input:checked+.slider {
+            background-color: #306543;
+        }
+
+        input:focus+.slider {
+            box-shadow: 0 0 1px #306543;
+        }
+
+        input:checked+.slider:before {
+            -webkit-transform: translateX(26px);
+            -ms-transform: translateX(26px);
+            transform: translateX(26px);
+        }
+
+        /* Rounded sliders */
+        .slider.round {
+            border-radius: 34px;
+        }
+
+        .slider.round:before {
+            content: url('assets/target.svg');
+            border-radius: 50%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="toosmallwarn"
+        style="position: fixed; top: 0; left: 0; padding: 10px; display: none; align-items: center; justify-content: center; width: 100%; height: 100%; background-color: white; color: black; z-index: 99;">
+        <h1>Your screen is too small! The smallest screen supported is 385px by 245px</h1>
+    </div>
+    <div id="map">
+    </div>
+    <div id="popup_div"
+        style="flex-direction: column; display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3; background: rgba(255, 255, 255, 0.8); padding: 20px; border-radius: 8px; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0px;">
+    </div>
+    <div style="position: fixed;
+         width: 65px;
+         height: 100px;
+         background-color: white;
+         z-index: 2;
+         top: 85px;
+         left: 5px;
+         border-radius: 50px;
+         display: flex;
+         align-items: center;
+         justify-content: center;
+         flex-direction: column;
+         font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+         ">
+        <h2 style="margin: 1px;" id="compass-direction">--</h2>
+        <h2 style="margin: 1px; margin-top: 10px;" id="speed_reading">--.-</h2>
+        <h2 style="margin: 1px; font-size: 10px;">mph</h2>
+    </div>
+    <div style="position: fixed;
+         width: 100%;
+         height: 95px;
+         background-color: white;
+         z-index: 2; /* Higher z-index to ensure visibility */
+         bottom: 0;
+         border-top-right-radius: 15px;
+         display: flex;
+         align-items: center; /* Center the content vertically */
+         flex-direction: column; /* Set flex direction to row */
+         padding-bottom: 0px;
+         ">
+        <div style="display: flex; flex-direction: row; width: 100%; height: 50px; margin-top: 10px;" >
+            <input type="text" placeholder="Search" style="flex: 1;
+                border-radius: 10px;
+                height: 60%;
+                text-align: center;
+                border-top-color: white;
+                border-left-color: white;
+                border: solid 2.5px #306543;
+                font-weight: bold;
+                font-size: 100%;
+                margin-right: 5px;
+                margin-left: 5px;">
+            <button style="aspect-ratio: 1 / 1; height: 74%; cursor: pointer;">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M14.9536 14.9458L21 21M17 10C17 13.866 13.866 17 10 17C6.13401 17 3 13.866 3 10C3 6.13401 6.13401 3 10 3C13.866 3 17 6.13401 17 10Z"
+                        stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+            </button>
+            <div style="width: 30px;"></div>
+            <div style="text-align: center;">
+                <label class="switch">
+                    <input id="FollowToggle" type="checkbox" checked>
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <button style="aspect-ratio: 1 / 1; height: 74%; margin-left: 5px; cursor: pointer; margin-right: 5px;">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M12 8H12.01M12 11V16M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z"
+                        stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </button>
+        </div>
+        <div style="width: 100%; height: 45px; margin: 0; display: flex; align-items: center; justify-content: center;">
+            <p id="version_number_display" style="margin: 0;" >Version: loading...</p>
+        </div>
+    </div>
+    </div>
+    <script src="src/leaflet.js"></script>
+    <script src="src/leaflet.label.js"></script>
+    <script src="src/leaflet.textpath.js"></script>
+    <script src="src/leaflet-geometryutil"></script>
+    <script src="https://cdn.jemcats.software/MAPLE/latest/js/MAPLE-full.min.js"></script>
+    <script src="https://cdn.jemcats.software/MAPLE/latest/js/MAPLE-coords.js"></script>
+    <script src="https://cdn.jsdelivr.net/openlocationcode/latest/openlocationcode.js"></script>
+    <script>
+        MAPLE.loadLists().then(() => {
+            console.log("All 4 JSON word lists loaded.")
+            const mscript = document.createElement('script');
+            mscript.src = 'src/main.script.js';
+            mscript.onload = () => console.log("Main script loaded and executed!");
+            document.body.appendChild(mscript);
+        });
+
+        (async () => {
+            try {
+                const response = await fetch('assets/version');
+                const text = await response.text();
+                document.getElementById("version_number_display").textContent = text;
+            } catch (err) {
+                console.error("Failed to load version:", err);
+            }
+        })();
+    </script>
+</body>
+
+</html>

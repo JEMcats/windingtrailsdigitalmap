@@ -1,0 +1,15 @@
+{
+  "name": "Winding Trails Map",
+  "short_name": "Winding Trails",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#fff",
+  "theme_color": "#fff",
+  "icons": [
+    {
+      "src": "https://www.windingtrails.org/images/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
