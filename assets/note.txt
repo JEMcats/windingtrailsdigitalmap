@@ -1,3 +1,1 @@
 WindingTrailsBBOX: -72.914629,41.705857,-72.749834,41.769263
-
-GENERATEBUILDNUMBER: openssl rand -base64 12 | tr -dc 'a-zA-Z0-9' | head -c 6; echo
