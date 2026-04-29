@@ -1,15 +1,274 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Redirecting...</title>
-  <meta http-equiv="refresh" content="0; url=map.html">
-  <script>
-    // Fallback redirect for browsers that ignore meta refresh
-    window.location.href = "map.html";
-  </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="LaPierre Trails">
+    <link rel="icon" href="https://www.windingtrails.org/images/favicon.png" type="image/png" />
+    <link rel="manifest" href="manifest.webmanifest">
+    <!-- Icon for iOS home screen -->
+    <link rel="apple-touch-icon" href="https://www.windingtrails.org/images/favicon.png">
+    <title>Winding Trails | Install App</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@300;400;500&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --green-deep: #1a2e1a;
+            --green-mid: #2d5a27;
+            --green-light: #4a8c3f;
+            --gold: #c9a84c;
+            --cream: #f5f0e8;
+            --text-light: #e8e0d0;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--green-deep);
+            background-image:
+                radial-gradient(ellipse at 20% 50%, rgba(45, 90, 39, 0.6) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(26, 46, 26, 0.8) 0%, transparent 50%),
+                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%234a8c3f' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            font-family: 'DM Sans', sans-serif;
+            padding: 1.5rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(201, 168, 76, 0.25);
+            border-radius: 20px;
+            padding: 3rem 2.5rem;
+            max-width: 460px;
+            width: 100%;
+            text-align: center;
+            backdrop-filter: blur(12px);
+            box-shadow:
+                0 24px 60px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            animation: fadeUp 0.6s ease both;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(24px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo-wrap {
+            margin-bottom: 1.75rem;
+        }
+
+        .logo-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--green-mid), var(--green-light));
+            border-radius: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            box-shadow: 0 8px 24px rgba(74, 140, 63, 0.35);
+        }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(1.6rem, 5vw, 2.1rem);
+            font-weight: 700;
+            color: var(--cream);
+            line-height: 1.2;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 0.8rem;
+            font-weight: 500;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 1.5rem;
+        }
+
+        .divider {
+            width: 48px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            margin: 0 auto 1.75rem;
+        }
+
+        .instruction {
+            color: var(--text-light);
+            font-size: 0.975rem;
+            font-weight: 300;
+            line-height: 1.7;
+            margin-bottom: 2rem;
+        }
+
+        /* Steps */
+        .steps {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+            margin-bottom: 2.25rem;
+            text-align: left;
+        }
+
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.9rem;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 10px;
+            padding: 0.85rem 1rem;
+        }
+
+        .step-num {
+            flex-shrink: 0;
+            width: 26px;
+            height: 26px;
+            background: var(--gold);
+            color: var(--green-deep);
+            border-radius: 50%;
+            font-size: 0.75rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 1px;
+        }
+
+        .step p {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .step strong {
+            color: var(--cream);
+            font-weight: 500;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.9rem 1.5rem;
+            background: linear-gradient(135deg, var(--green-mid), var(--green-light));
+            color: #fff;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 500;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: opacity 0.2s, transform 0.15s;
+            box-shadow: 0 6px 20px rgba(74, 140, 63, 0.35);
+            margin-bottom: 0.75rem;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.85rem 1.5rem;
+            background: transparent;
+            color: var(--text-light);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 400;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: border-color 0.2s, color 0.2s, transform 0.15s;
+        }
+
+        .btn-secondary:hover {
+            border-color: rgba(201, 168, 76, 0.5);
+            color: var(--cream);
+            transform: translateY(-1px);
+        }
+    </style>
 </head>
+
 <body>
+    <div class="card">
+        <div class="logo-wrap">
+            <div class="logo-icon">🌲</div>
+        </div>
+
+        <p class="subtitle">Winding Trails</p>
+        <h1>Add to Your Home Screen</h1>
+        <div class="divider"></div>
+
+        <p class="instruction">Install the Winding Trails map as an app for the best experience — no App Store required.
+        </p>
+
+        <div class="steps">
+            <div class="step">
+                <div class="step-num">1</div>
+                <p>Tap the <strong>Share</strong> button at the bottom of your browser (the box with an arrow pointing
+                    up).</p>
+            </div>
+            <div class="step">
+                <div class="step-num">2</div>
+                <p>Scroll down and tap <strong>"Add to Home Screen"</strong>.</p>
+            </div>
+            <div class="step">
+                <div class="step-num">3</div>
+                <p>Tap <strong>"Add"</strong> in the top right corner to confirm.</p>
+            </div>
+        </div>
+
+        <a href="map.html" class="btn-primary">
+            Open Map Without Installing
+        </a>
+    </div>
+
+    <script>
+        // Detect iOS (iPhone or iPad)
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+        // Also detect iPad on iPadOS 13+ (reports as MacIntel but has touch)
+        const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+
+        if (!isIOS && !isIPadOS) {
+            // Not an Apple mobile device — go straight to the map
+            window.location.replace('map.html');
+        }
+    </script>
 </body>
+
 </html>
