@@ -11,6 +11,72 @@ const DOM = {
     followToggle: document.getElementById('FollowToggle'),
 };
 
+let rotatemapwithcompass = false;
+
+if (localStorage.getItem('rotatemapwithcompass')) {
+    toggleCompassMode(localStorage.getItem('rotatemapwithcompass'))
+} else {
+    toggleCompassMode(false)
+}
+
+function toggleCompassMode(setValue) {
+    if (setValue) {
+        rotatemapwithcompass = setValue;
+        if (rotatemapwithcompass == "true") {
+            document.getElementById('compassModeButtonImage').src = "assets/location_arrow_locked.svg"
+            localStorage.setItem('rotatemapwithcompass', "true")
+            rotatemapwithcompass = "true";
+        } else {
+            document.getElementById('compassModeButtonImage').src = "assets/location_arrow_north.svg"
+            localStorage.setItem('rotatemapwithcompass', "false")
+            rotatemapwithcompass = "false";
+        }
+    } else {
+        if (rotatemapwithcompass == "true") {
+            document.getElementById('compassModeButtonImage').src = "assets/location_arrow_north.svg"
+            rotatemapwithcompass = "false";
+            localStorage.setItem('rotatemapwithcompass', "false")
+        } else {
+            document.getElementById('compassModeButtonImage').src = "assets/location_arrow_locked.svg"
+            rotatemapwithcompass = "true";
+            localStorage.setItem('rotatemapwithcompass', "true")
+        }
+    }
+}
+
+function createDirectionIcon(rotationDeg = 0) {
+    return L.divIcon({
+        className: '',  // Suppress Leaflet's default white box styling
+        html: `
+            <div style="
+                position: relative;
+                width: 24px;
+                height: 24px;
+                background-color: #007bff;
+                border-radius: 50%;
+                opacity: 0.8;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            ">
+                <img
+                    src="assets/uparrow.svg"
+                    style="
+                        width: 50px;
+                        height: 50px;
+                        transform: rotate(${rotationDeg}deg);
+                        display: block;
+                    "
+                    alt="direction arrow"
+                />
+            </div>
+        `,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],   // Center the icon on the coordinate
+        popupAnchor: [0, -14],  // Position popup above the marker
+    });
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -89,6 +155,17 @@ function initCompass() {
         }
 
         if (heading !== null) {
+
+            if (rotatemapwithcompass == "true" && DOM.followToggle.checked == true) {
+                allUsersLocations.localUser.setIcon(createDirectionIcon(0))
+                map.setBearing(-heading);
+                document.getElementById('compassModeButtonImage').src = "assets/location_arrow_locked.svg"
+            } else {
+                allUsersLocations.localUser.setIcon(createDirectionIcon(heading))
+                map.setBearing(0);
+                document.getElementById('compassModeButtonImage').src = "assets/location_arrow_north.svg"
+            }
+
             DOM.compassDir.innerText = degreesToCompass(heading.toFixed(2));
             currentOrientation = heading.toFixed(2);
         } else {
@@ -147,6 +224,8 @@ const map = L.map('map', {
     zoom: 19,
     scrollWheelZoom: true,
     zoomControl: true,
+    bearing: 0,
+    rotate: true,
 });
 
 map.createPane('userPane');
@@ -187,26 +266,6 @@ function computePolylineOrientation(polyline) {
     angle = ((angle + 180) % 360) - 180;
 
     return (angle > 90 || angle < -90) ? 'flip' : null;
-}
-
-function updateAllTrailTextOrientations() {
-    trailPolylines.forEach(polyline => {
-        if (!polyline || typeof polyline.setText !== 'function') return;
-        polyline.setText(polyline._text || '', {
-            ...(polyline._textOptions || {}),
-            orientation: computePolylineOrientation(polyline),
-        });
-    });
-    updatePoiTooltips();
-}
-
-// ---------------------------------------------------------------------------
-// Map rotation
-// ---------------------------------------------------------------------------
-function rotateMap(degrees) {
-    rotationAngle += degrees;
-    DOM.map.style.transform = `rotate(${rotationAngle}deg)`;
-    updateAllTrailTextOrientations();
 }
 
 // ---------------------------------------------------------------------------
@@ -510,13 +569,11 @@ function updateLocalUserLocation(position) {
         allUsersLocations.localUser.setLatLng([lat, lng]);
         allUsersLocations.localUser.getPopup()?.setContent(popupContent);
     } else {
-        allUsersLocations.localUser = L.circleMarker([lat, lng], {
-            radius: 8,
-            color: '#007bff',
-            fillColor: '#007bff',
-            fillOpacity: 0.8,
+        allUsersLocations.localUser = L.marker([lat, lng], {
+            icon: createDirectionIcon(0),
             pane: 'userPane',
-        }).addTo(map)
+        })
+            .addTo(map)
             .bindPopup(
                 L.popup({ autoClose: true, closeOnClick: false, closeButton: true, autoPan: true })
                     .setContent(popupContent)

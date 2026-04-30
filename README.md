@@ -1,6 +1,11 @@
 # Winding Trails Digital Map
 Mapping the entirety of Winding Trails, one report at a time.
 
+## Usage
+Navigate to [our webpage](https://jemcats.software/websites/windingtrailsdigitalmap/index.html).
+
+If you are on an iPhone or iPad you will have the ability to install the app to your home screen.
+
 ## Making a report
 Reports can be made out to:
 ```

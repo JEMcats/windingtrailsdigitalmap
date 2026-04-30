@@ -1,0 +1,1 @@
+A new version of the map was published. The map data that was attached to this release is most likely not the latest version, the latest you can find is located in the main branch at ```/assets/data.json```.
