@@ -11,7 +11,7 @@ on:
         required: true
 
 permissions:
-  contents: write  # Ensures the GITHUB_TOKEN can create releases
+  contents: write
 
 jobs:
   create-github-release:
@@ -41,7 +41,8 @@ jobs:
             -H "Content-Type: application/json" \
             -d "$(jq -n --arg tag "$tag" --arg title "$title" --arg description "$description" \
                 '{tag_name: $tag, target_commitish: "main", name: $title, body: $description, draft: false, prerelease: false}')" \
-            https://github.com/JEMcats/windingtrailsdigitalmap/releases --output release.json
+            https://api.github.com/repos/JEMcats/windingtrailsdigitalmap/releases \
+            --output release.json
 
           upload_url=$(jq -r '.upload_url' release.json | sed "s/{?name,label}//")
           echo "UPLOAD_URL=$upload_url" >> $GITHUB_ENV
@@ -56,43 +57,40 @@ jobs:
           curl -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/octet-stream" \
-            --data-binary ./assets/data.json \
+            --data-binary @./assets/data.json \
             "$upload_url"
 
   upload-to-s3:
     runs-on: ubuntu-latest
-    needs: create-github-release  # Ensure this runs after the release is created
+    needs: create-github-release
     steps:
       - name: Checkout main branch
         uses: actions/checkout@v3
         with:
-          ref: main  # Checkout the 'main' branch
+          ref: main
 
-      # Install AWS CLI
       - name: Install AWS CLI
         run: |
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv3.zip"
-          unzip awscliv3.zip
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
           sudo ./aws/install --update
-          aws --version  # Verify installation
+          aws --version
 
-      # Configure AWS credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-        
 
-      # Sync contents to S3 bucket while excluding .github folder
       - name: Sync to S3
         run: |
-            aws s3 sync . s3://jemcats.software/websites/windingtrailsdigitalmap/ \
+          aws s3 sync . s3://jemcats.software/websites/windingtrailsdigitalmap/ \
             --delete \
             --exclude ".git/*" \
             --exclude ".github/*" \
             --exclude ".gitignore" \
             --exclude "release.md" \
             --exclude "assets/tiles.zip" \
-            --exclude "assets/note.txt"
+            --exclude "assets/note.txt" \
+            --exclude "README.md"
