@@ -56,7 +56,7 @@ jobs:
           curl -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/octet-stream" \
-            --data-binary @/assets/data.json \
+            --data-binary ./assets/data.json \
             "$upload_url"
 
   upload-to-s3:
