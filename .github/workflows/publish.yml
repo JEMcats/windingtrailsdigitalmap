@@ -93,4 +93,6 @@ jobs:
             --exclude "release.md" \
             --exclude "assets/tiles.zip" \
             --exclude "assets/note.txt" \
-            --exclude "README.md"
+            --exclude "README.md" \
+            --exclude "awscliv2.zip" \
+            --exclude "aws/*"
