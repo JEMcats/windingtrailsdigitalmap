@@ -36,11 +36,17 @@ jobs:
           title="${{ github.event.inputs.title }}"
           description="$DESCRIPTION"
 
+          if [[ "$tag" == *Indev* ]]; then
+            prerelease=true
+          else
+            prerelease=false
+          fi
+
           curl -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "$(jq -n --arg tag "$tag" --arg title "$title" --arg description "$description" \
-                '{tag_name: $tag, target_commitish: "main", name: $title, body: $description, draft: false, prerelease: false}')" \
+            -d "$(jq -n --arg tag "$tag" --arg title "$title" --arg description "$description" --argjson prerelease "$prerelease" \
+                '{tag_name: $tag, target_commitish: "main", name: $title, body: $description, draft: false, prerelease: $prerelease}')" \
             https://api.github.com/repos/JEMcats/windingtrailsdigitalmap/releases \
             --output release.json
 
