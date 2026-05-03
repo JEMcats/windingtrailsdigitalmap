@@ -1,5 +1,6 @@
 'use strict';
 
+let main_script_js_version = 'v1.0.0-Indev9'
 // ---------------------------------------------------------------------------
 // DOM element cache — resolved once on startup to avoid repeated lookups
 // ---------------------------------------------------------------------------
@@ -452,7 +453,8 @@ async function fetchData() {
                         `<h2 style="margin-bottom:0">${trail.name}</h2>` +
                         `<h4 style="margin:5px 0">${TRAIL_TEXT_MAP[trail.difficulty]}</h4>` +
                         `<p style="margin-bottom: 0px;" >Location: ${MAPLE.encodeCoords(lat, lng)}</p>` +
-                        `<p style="margin-top: 0px;" >LATLNG: ${lat}, ${lng}</p>`
+                        `<p style="margin-top: 0px;" >LATLNG: ${lat}, ${lng}</p>` +
+                        `<button onclick="makeReport(${lat},${lng})">Make a report here</button>`
                     )
                     .openOn(map);
             });
@@ -526,7 +528,8 @@ async function fetchData() {
                         `<h4 style="margin:5px 0">${typeLabel}</h4>` +
                         `<p style="margin-top:0">Open: ${POI_TEXT_MAP[poi.opperation_time] || poi.opperation_time}</p>` +
                         `<p style="margin-bottom: 0px;" >Location: ${MAPLE.encodeCoords(poi.coordinates[0], poi.coordinates[1])}</p>` +
-                        `<p style="margin-top: 0px;" >LATLNG: ${poi.coordinates[0]}, ${poi.coordinates[1]}</p>`
+                        `<p style="margin-top: 0px;" >LATLNG: ${poi.coordinates[0]}, ${poi.coordinates[1]}</p>` +
+                        `<button onclick="makeReport(${poi.coordinates[0]},${poi.coordinates[1]})">Make a report here</button>`
                     )
             );
 
@@ -601,11 +604,12 @@ function updateLocalUserLocation(position) {
     getSpeedElement().innerText = formattedSpeed;
 
     const popupContent =
-        `Your latest location.<br>` +
-        `${MAPLE.encodeCoords(lat, lng)}<br>` +
-        `Direction: ${degreesToCompass(currentOrientation)} / ${currentOrientation}<br>` +
-        `Speed: ${formattedSpeed}`;
-
+        `<h2 style="margin-bottom:5px">Your latest location</h2>` +
+        `<p style="margin-bottom: 0px;" >Location: ${MAPLE.encodeCoords(lat, lng)}</p>` +
+        `<p style="margin-top: 0px;" >LATLNG: ${lat}, ${lng}</p>` +
+        `<p style="margin-bottom: 0px;" >Direction: ${degreesToCompass(currentOrientation)} / ${currentOrientation}</p>` +
+        `<p style="margin-top: 0px;" >Speed: ${formattedSpeed}</p>` +
+        `<button onclick="makeReport(${lat},${lng})">Make a report here</button>`
     // --- Update or create the local user marker ---
     // Capture distance BEFORE updating the marker position (fixes a bug where
     // comparing against the already-moved marker always returned 0).
