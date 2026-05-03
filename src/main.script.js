@@ -12,6 +12,7 @@ const DOM = {
 };
 
 let rotatemapwithcompass = false;
+let bottommenuopen = false;
 
 if (localStorage.getItem('rotatemapwithcompass')) {
     toggleCompassMode(localStorage.getItem('rotatemapwithcompass'))
@@ -40,6 +41,45 @@ function toggleCompassMode(setValue) {
             document.getElementById('compassModeButtonImage').src = "assets/location_arrow_locked.svg"
             rotatemapwithcompass = "true";
             localStorage.setItem('rotatemapwithcompass', "true")
+        }
+    }
+}
+
+function toggleMenuOpen(setValue) {
+    if (setValue) {
+        bottommenuopen = setValue;
+        if (bottommenuopen == true) {
+            document.getElementById('bottommenu').style.height = '70%';
+            document.getElementById('bottommenu').style.minHeight = '430px';
+            document.getElementById('menucontent').style.height = '100%';
+            setTimeout(() => {
+                document.getElementById('menucontent').style.contentVisibility = '';
+            }, 100);
+        } else {
+            document.getElementById('bottommenu').style.height = '110px';
+            document.getElementById('bottommenu').style.minHeight = '0px';
+            document.getElementById('menucontent').style.height = '0%';
+            setTimeout(() => {
+                document.getElementById('menucontent').style.contentVisibility = 'hidden';
+            }, 900);
+        }
+    } else {
+        if (bottommenuopen == true) {
+            bottommenuopen = false
+            document.getElementById('bottommenu').style.height = '110px';
+            document.getElementById('bottommenu').style.minHeight = '0px';
+            document.getElementById('menucontent').style.height = '0%';
+            setTimeout(() => {
+                document.getElementById('menucontent').style.contentVisibility = 'hidden';
+            }, 900);
+        } else {
+            bottommenuopen = true
+            document.getElementById('bottommenu').style.height = '70%';
+            document.getElementById('bottommenu').style.minHeight = '430px';
+            document.getElementById('menucontent').style.height = '100%';
+            setTimeout(() => {
+                document.getElementById('menucontent').style.contentVisibility = '';
+            }, 100);
         }
     }
 }
@@ -104,6 +144,13 @@ const TRAIL_TEXT_MAP = {
     green: 'Easy trail',
     blue: 'Moderate trail',
     black: 'Difficult trail',
+};
+
+const TRAIL_COLOR_MAP = {
+    purple: '#8f408f',
+    green: '#408F58',
+    blue: '#286097',
+    black: '#1A1919',
 };
 
 // ---------------------------------------------------------------------------
@@ -379,7 +426,7 @@ async function fetchData() {
             trailPolylines.push(polyline);
 
             const whiteLine = L.polyline(latLngs, {
-                color: trail.difficulty,
+                color: TRAIL_COLOR_MAP[trail.difficulty],
                 weight: 12,
                 opacity: 1,
                 smoothFactor: 1,
