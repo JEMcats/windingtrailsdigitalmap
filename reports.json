@@ -1,0 +1,43 @@
+[
+  {
+    "this": "is",
+    "an": "example",
+    "of": "a",
+    "report": -1
+  },
+  {
+    "name": "Sk conn",
+    "coords": [
+      41.75800723393634,
+      -72.85471641934649
+    ]
+  },
+  {
+    "name": "Walton Pond Boating",
+    "coords": [
+      41.74986840370904,
+      -72.84638504958366
+    ]
+  },
+  {
+    "name": "Turkey Trot",
+    "coords": [
+      41.75494688372426,
+      -72.84713112971845
+    ]
+  },
+  {
+    "name": "Bird blind location update",
+    "coords": [
+      41.75804304863969,
+      -72.85097460363679
+    ]
+  },
+  {
+    "name": "Walton Pond Island dock",
+    "coords": [
+      41.752644692074824,
+      -72.84621575861601
+    ]
+  }
+]
