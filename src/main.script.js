@@ -1,93 +1,147 @@
 'use strict';
 
-let main_script_js_version = 'v1.0.0-Indev9'
+const SCRIPT_VERSION = 'v1.0.0-Indev10';
+
 // ---------------------------------------------------------------------------
 // DOM element cache — resolved once on startup to avoid repeated lookups
 // ---------------------------------------------------------------------------
 const DOM = {
-    map: document.getElementById('map'),
-    tooSmallWarn: document.getElementById('toosmallwarn'),
-    compassDir: document.getElementById('compass-direction'),
-    popupDiv: document.getElementById('popup_div'),
-    followToggle: document.getElementById('FollowToggle'),
+    map:                    document.getElementById('map'),
+    tooSmallWarn:           document.getElementById('toosmallwarn'),
+    compassDir:             document.getElementById('compass-direction'),
+    popupDiv:               document.getElementById('popup_div'),
+    followToggle:           document.getElementById('FollowToggle'),
+    compassModeButtonImage: document.getElementById('compassModeButtonImage'), // Cached — was re-queried on every compass event
+    speedReading:           document.getElementById('speed_reading'),
 };
 
-let rotatemapwithcompass = false;
-let bottommenuopen = false;
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+const REFERENCE_ZOOM       = 19;
+const POI_TOOLTIP_BASE_FONT = 12;
+const FOLLOW_SET_MIN_MS    = 500;
+const FOLLOW_MIN_DIST_METERS = 3;
 
-if (localStorage.getItem('rotatemapwithcompass')) {
-    toggleCompassMode(localStorage.getItem('rotatemapwithcompass'))
-} else {
-    toggleCompassMode(false)
+/** Tooltip pixel offsets [x, y] per zoom level */
+const TOOLTIP_OFFSETS = { 19: [0, 20], 20: [-30, 30], 21: [-90, 50] };
+
+const POI_TEXT_MAP = {
+    all:        'All year',
+    unknown:    'Unknown',
+    conditions: 'If conditions permit',
+    summer:     'Summer only',
+    private:    'No public access',
+    day_camp:   'Open to camps/events only',
+    na:         'Not applicable',
+    supervised: 'Under staff supervision only',
+    campsites:  'May to October',
+};
+
+const TRAIL_TEXT_MAP = {
+    purple: 'Paved road',
+    green:  'Easy trail',
+    blue:   'Moderate trail',
+    black:  'Difficult trail',
+};
+
+const TRAIL_COLOR_MAP = {
+    purple: '#8f408f',
+    green:  '#408F58',
+    blue:   '#286097',
+    black:  '#1A1919',
+};
+
+const COMPASS_DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+
+// ---------------------------------------------------------------------------
+// Mutable state
+// ---------------------------------------------------------------------------
+let rotatemapwithcompass = false; // Now a proper boolean — was a string "true"/"false"
+let bottommenuopen       = false;
+let currentOrientation   = 'N/A';
+let rotationAngle        = 0;
+let trailPolylines       = [];
+let trailWhiteLines      = [];
+let poiMarkers           = [];
+let allUsersLocations    = {};
+let lastLocalPosition    = null;
+let lastFollowSetTime    = 0;
+let suppressMoveendFetch = false;
+let cachedMapData        = null;
+let cachedIcons          = {};
+
+// rAF compass throttle state — prevents deviceorientation lag
+let compassRafPending = false;
+let pendingHeading    = null;
+
+// ---------------------------------------------------------------------------
+// Compass mode toggle
+// ---------------------------------------------------------------------------
+
+/** Read stored compass mode from localStorage on startup */
+rotatemapwithcompass = localStorage.getItem('rotatemapwithcompass') === 'true';
+_applyCompassModeUI(rotatemapwithcompass);
+
+/**
+ * Toggle or set compass rotation mode.
+ * @param {boolean|null} setValue - Pass a boolean to set explicitly, or omit/null to toggle.
+ */
+function toggleCompassMode(setValue = null) {
+    rotatemapwithcompass = (setValue !== null) ? Boolean(setValue) : !rotatemapwithcompass;
+    localStorage.setItem('rotatemapwithcompass', rotatemapwithcompass);
+    _applyCompassModeUI(rotatemapwithcompass);
 }
 
-function toggleCompassMode(setValue) {
-    if (setValue) {
-        rotatemapwithcompass = setValue;
-        if (rotatemapwithcompass == "true") {
-            document.getElementById('compassModeButtonImage').src = "assets/location_arrow_locked.svg"
-            localStorage.setItem('rotatemapwithcompass', "true")
-            rotatemapwithcompass = "true";
-        } else {
-            document.getElementById('compassModeButtonImage').src = "assets/location_arrow_north.svg"
-            localStorage.setItem('rotatemapwithcompass', "false")
-            rotatemapwithcompass = "false";
-        }
+/** Update compass button image to reflect current mode. */
+function _applyCompassModeUI(isLocked) {
+    DOM.compassModeButtonImage.src = isLocked
+        ? 'assets/location_arrow_locked.svg'
+        : 'assets/location_arrow_north.svg';
+}
+
+// ---------------------------------------------------------------------------
+// Bottom menu toggle
+// ---------------------------------------------------------------------------
+
+/**
+ * Toggle or set the bottom menu open/closed state.
+ * @param {boolean|null} setValue - Pass a boolean to set explicitly, or omit/null to toggle.
+ */
+function toggleMenuOpen(setValue = null) {
+    bottommenuopen = (setValue !== null) ? Boolean(setValue) : !bottommenuopen;
+    _applyMenuUI(bottommenuopen);
+}
+
+/** Apply bottom menu open/closed styles. */
+function _applyMenuUI(isOpen) {
+    const menu    = document.getElementById('bottommenu');
+    const content = document.getElementById('menucontent');
+
+    if (isOpen) {
+        menu.style.height       = '70%';
+        menu.style.minHeight    = '430px';
+        content.style.height    = '100%';
+        setTimeout(() => { content.style.contentVisibility = ''; }, 100);
     } else {
-        if (rotatemapwithcompass == "true") {
-            document.getElementById('compassModeButtonImage').src = "assets/location_arrow_north.svg"
-            rotatemapwithcompass = "false";
-            localStorage.setItem('rotatemapwithcompass', "false")
-        } else {
-            document.getElementById('compassModeButtonImage').src = "assets/location_arrow_locked.svg"
-            rotatemapwithcompass = "true";
-            localStorage.setItem('rotatemapwithcompass', "true")
-        }
+        menu.style.height       = '110px';
+        menu.style.minHeight    = '0px';
+        content.style.height    = '0%';
+        setTimeout(() => { content.style.contentVisibility = 'hidden'; }, 900);
     }
 }
 
-function toggleMenuOpen(setValue) {
-    if (setValue) {
-        bottommenuopen = setValue;
-        if (bottommenuopen == true) {
-            document.getElementById('bottommenu').style.height = '70%';
-            document.getElementById('bottommenu').style.minHeight = '430px';
-            document.getElementById('menucontent').style.height = '100%';
-            setTimeout(() => {
-                document.getElementById('menucontent').style.contentVisibility = '';
-            }, 100);
-        } else {
-            document.getElementById('bottommenu').style.height = '110px';
-            document.getElementById('bottommenu').style.minHeight = '0px';
-            document.getElementById('menucontent').style.height = '0%';
-            setTimeout(() => {
-                document.getElementById('menucontent').style.contentVisibility = 'hidden';
-            }, 900);
-        }
-    } else {
-        if (bottommenuopen == true) {
-            bottommenuopen = false
-            document.getElementById('bottommenu').style.height = '110px';
-            document.getElementById('bottommenu').style.minHeight = '0px';
-            document.getElementById('menucontent').style.height = '0%';
-            setTimeout(() => {
-                document.getElementById('menucontent').style.contentVisibility = 'hidden';
-            }, 900);
-        } else {
-            bottommenuopen = true
-            document.getElementById('bottommenu').style.height = '70%';
-            document.getElementById('bottommenu').style.minHeight = '430px';
-            document.getElementById('menucontent').style.height = '100%';
-            setTimeout(() => {
-                document.getElementById('menucontent').style.contentVisibility = '';
-            }, 100);
-        }
-    }
-}
+// ---------------------------------------------------------------------------
+// Direction icon — created once, rotation updated in-place via DOM
+// ---------------------------------------------------------------------------
 
+/**
+ * Create the user direction marker icon (called once at marker creation).
+ * Rotation is updated cheaply via updateMarkerRotation() instead of rebuilding the icon.
+ */
 function createDirectionIcon(rotationDeg = 0) {
     return L.divIcon({
-        className: '',  // Suppress Leaflet's default white box styling
+        className: '',
         html: `
             <div style="
                 position: relative;
@@ -112,67 +166,25 @@ function createDirectionIcon(rotationDeg = 0) {
                 />
             </div>
         `,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12],   // Center the icon on the coordinate
-        popupAnchor: [0, -14],  // Position popup above the marker
+        iconSize:    [24, 24],
+        iconAnchor:  [12, 12],
+        popupAnchor: [0, -14],
     });
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-const REFERENCE_ZOOM = 19;
-const POI_TOOLTIP_BASE_FONT = 12;
-// Tooltip pixel offsets [x, y] per zoom level
-const TOOLTIP_OFFSETS = { 19: [0, 20], 20: [-30, 30], 21: [-90, 50] };
-const FOLLOW_SET_MIN_MS = 500;
-const FOLLOW_MIN_DIST_METERS = 3;
-
-const POI_TEXT_MAP = {
-    all: 'All year',
-    unknown: 'Unknown',
-    conditions: 'If conditions permit',
-    summer: 'Summer only',
-    private: 'No public access',
-    day_camp: 'Open to camps/events only',
-    na: 'Not applicable',
-    supervised: 'Under staff supervision only',
-    campsites: 'May to October',
-};
-
-const TRAIL_TEXT_MAP = {
-    purple: 'Paved road',
-    green: 'Easy trail',
-    blue: 'Moderate trail',
-    black: 'Difficult trail',
-};
-
-const TRAIL_COLOR_MAP = {
-    purple: '#8f408f',
-    green: '#408F58',
-    blue: '#286097',
-    black: '#1A1919',
-};
+/**
+ * Update the user marker's arrow rotation directly in the DOM.
+ * MUCH faster than calling setIcon() — avoids Leaflet tearing down/rebuilding the element.
+ */
+function updateMarkerRotation(degrees) {
+    const markerEl = allUsersLocations.localUser?.getElement?.();
+    if (!markerEl) return;
+    const img = markerEl.querySelector('img');
+    if (img) img.style.transform = `rotate(${degrees}deg)`;
+}
 
 // ---------------------------------------------------------------------------
-// Mutable state
-// ---------------------------------------------------------------------------
-let currentOrientation = 'N/A';
-let rotationAngle = 0;
-let trailPolylines = [];
-let trailWhiteLines = [];
-let poiMarkers = [];
-let allUsersLocations = {};
-let lastLocalPosition = null;
-let lastFollowSetTime = 0;
-let suppressMoveendFetch = false;
-let cachedMapData = null;
-let cachedIcons = {};
-let speedElement = null;
-
-// ---------------------------------------------------------------------------
-// Screen-size warning
-// Replace setInterval polling with ResizeObserver — fires only on actual resize
+// Screen-size warning — ResizeObserver fires only on actual resize (no polling)
 // ---------------------------------------------------------------------------
 const resizeObserver = new ResizeObserver(() => {
     const tooSmall = window.innerWidth < 385 || window.innerHeight < 245;
@@ -183,41 +195,65 @@ resizeObserver.observe(document.documentElement);
 // ---------------------------------------------------------------------------
 // Compass
 // ---------------------------------------------------------------------------
+
+/** Convert a heading in degrees to a compass direction abbreviation. */
 function degreesToCompass(degrees) {
-    const DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
     const normalized = ((degrees % 360) + 360) % 360;
-    return DIRS[Math.round(normalized / 45) % 8];
+    return COMPASS_DIRS[Math.round(normalized / 45) % 8];
+}
+
+/**
+ * Apply a pending compass heading update to the map and UI.
+ * Called via requestAnimationFrame so multiple rapid events collapse into one paint.
+ */
+function _applyCompassUpdate() {
+    compassRafPending = false;
+
+    const heading = pendingHeading;
+    if (heading === null) return;
+
+    // Use textContent — faster than innerText for plain text
+    DOM.compassDir.textContent = degreesToCompass(heading);
+    currentOrientation = heading.toFixed(2);
+
+    const followActive = rotatemapwithcompass && DOM.followToggle.checked;
+
+    if (followActive) {
+        // Map rotates with device — arrow stays visually upright (0°)
+        updateMarkerRotation(0);
+        map.setBearing(-heading);
+        DOM.compassModeButtonImage.src = 'assets/location_arrow_locked.svg';
+    } else {
+        // Map stays north-up — arrow shows device heading
+        updateMarkerRotation(heading);
+        map.setBearing(0);
+        DOM.compassModeButtonImage.src = 'assets/location_arrow_north.svg';
+    }
 }
 
 function initCompass() {
+    /**
+     * Raw deviceorientation handler — intentionally minimal.
+     * Heavy work is deferred to rAF so rapid-fire events don't lag the UI.
+     */
     function handleOrientation(event) {
         let heading;
+
         if (event.webkitCompassHeading !== undefined) {
-            // iOS non-standard API
-            heading = event.webkitCompassHeading;
+            heading = event.webkitCompassHeading; // iOS
         } else if (event.absolute && event.alpha !== null) {
-            // Standard API (Android, etc.)
-            heading = 360 - event.alpha;
+            heading = 360 - event.alpha;           // Android / standard
         } else {
-            heading = null;
+            console.warn('Compass heading unavailable on this device.');
+            return;
         }
 
-        if (heading !== null) {
+        pendingHeading = heading;
 
-            if (rotatemapwithcompass == "true" && DOM.followToggle.checked == true) {
-                allUsersLocations.localUser.setIcon(createDirectionIcon(0))
-                map.setBearing(-heading);
-                document.getElementById('compassModeButtonImage').src = "assets/location_arrow_locked.svg"
-            } else {
-                allUsersLocations.localUser.setIcon(createDirectionIcon(heading))
-                map.setBearing(0);
-                document.getElementById('compassModeButtonImage').src = "assets/location_arrow_north.svg"
-            }
-
-            DOM.compassDir.innerText = degreesToCompass(heading.toFixed(2));
-            currentOrientation = heading.toFixed(2);
-        } else {
-            console.warn('Compass heading not available on this device.');
+        // Collapse all queued events into a single rAF paint — eliminates compass lag
+        if (!compassRafPending) {
+            compassRafPending = true;
+            requestAnimationFrame(_applyCompassUpdate);
         }
     }
 
@@ -227,14 +263,14 @@ function initCompass() {
     }
 
     if (!window.DeviceOrientationEvent) {
-        console.error('Device orientation is not supported on this device.');
+        console.error('Device orientation not supported on this device.');
         dismissPopup();
-        DOM.compassDir.innerText = 'NS';
+        DOM.compassDir.textContent = 'NS';
         return;
     }
 
     if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-        // iOS 13+ requires explicit permission
+        // iOS 13+ requires explicit user permission
         DeviceOrientationEvent.requestPermission()
             .then(state => {
                 dismissPopup();
@@ -242,16 +278,16 @@ function initCompass() {
                     window.addEventListener('deviceorientation', handleOrientation, true);
                 } else {
                     console.error('Compass access denied by user.');
-                    DOM.compassDir.innerText = 'AD';
+                    DOM.compassDir.textContent = 'AD';
                 }
             })
             .catch(err => {
                 console.error('Compass permission request failed:', err);
                 dismissPopup();
-                DOM.compassDir.innerText = 'PF';
+                DOM.compassDir.textContent = 'PF';
             });
     } else {
-        // Android and other standard-compliant devices
+        // Android and other standard-compliant devices — no permission needed
         window.addEventListener('deviceorientation', handleOrientation, true);
         dismissPopup();
     }
@@ -268,12 +304,12 @@ DOM.popupDiv.style.display = 'flex';
 // Map setup
 // ---------------------------------------------------------------------------
 const map = L.map('map', {
-    center: [41.746694, -72.846410],
-    zoom: 19,
-    scrollWheelZoom: true,
-    zoomControl: true,
-    bearing: 0,
-    rotate: true,
+    center:           [41.746694, -72.846410],
+    zoom:             19,
+    scrollWheelZoom:  true,
+    zoomControl:      true,
+    bearing:          0,
+    rotate:           true,
 });
 
 map.createPane('userPane');
@@ -281,8 +317,8 @@ map.getPane('userPane').style.zIndex = 650;
 
 L.tileLayer('https://easy-map.mattheis.ddns.net/maps/winding_trails/{z}/{x}/{y}.png', {
     maxNativeZoom: 19,
-    maxZoom: 21,
-    minZoom: 15,
+    maxZoom:       21,
+    minZoom:       15,
     minNativeZoom: 0,
     attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>' +
@@ -305,19 +341,17 @@ function computePolylineOrientation(polyline) {
 
     if (flat.length < 2) return null;
 
-    const pts = flat.map(ll => map.latLngToLayerPoint(ll));
-    const dx = pts[pts.length - 1].x - pts[0].x;
-    const dy = pts[pts.length - 1].y - pts[0].y;
-
-    // Subtract any CSS rotation so text stays visually upright
-    let angle = Math.atan2(dy, dx) * 180 / Math.PI - (rotationAngle || 0);
-    angle = ((angle + 180) % 360) - 180;
+    const pts  = flat.map(ll => map.latLngToLayerPoint(ll));
+    const dx   = pts[pts.length - 1].x - pts[0].x;
+    const dy   = pts[pts.length - 1].y - pts[0].y;
+    let angle  = Math.atan2(dy, dx) * 180 / Math.PI - (rotationAngle || 0);
+    angle      = ((angle + 180) % 360) - 180;
 
     return (angle > 90 || angle < -90) ? 'flip' : null;
 }
 
 // ---------------------------------------------------------------------------
-// Zoom-responsive adjustments (combined into a single zoomend handler)
+// Zoom-responsive adjustments — single zoomend handler
 // ---------------------------------------------------------------------------
 function adjustTrailWeights() {
     const weight = 12 * Math.pow(2, map.getZoom() - 19);
@@ -326,9 +360,9 @@ function adjustTrailWeights() {
 }
 
 function updatePoiTooltips() {
-    const zoom = map.getZoom();
+    const zoom        = map.getZoom();
     const markerScale = Math.pow(2, zoom - REFERENCE_ZOOM);
-    const offset = TOOLTIP_OFFSETS[zoom] ?? TOOLTIP_OFFSETS[REFERENCE_ZOOM];
+    const offset      = TOOLTIP_OFFSETS[zoom] ?? TOOLTIP_OFFSETS[REFERENCE_ZOOM];
 
     poiMarkers.forEach(marker => {
         try {
@@ -337,9 +371,9 @@ function updatePoiTooltips() {
 
             if (zoom >= REFERENCE_ZOOM) {
                 marker.bindTooltip(content || '', {
-                    permanent: true,
-                    direction: 'center',
-                    className: 'poiLabel',
+                    permanent:  true,
+                    direction:  'center',
+                    className:  'poiLabel',
                     offset,
                 });
                 const fontSize = Math.max(6, Math.round(POI_TOOLTIP_BASE_FONT * markerScale));
@@ -353,21 +387,20 @@ function updatePoiTooltips() {
 }
 
 /**
- * Rebuild each POI marker's divIcon at the correct pixel size for the
- * current zoom level. Must call setIcon() so Leaflet also updates its
- * internal iconSize/iconAnchor used for positioning.
+ * Rebuild each POI marker's divIcon at the correct pixel size for the current zoom.
+ * Must call setIcon() so Leaflet also updates its internal iconSize/iconAnchor.
  */
 function updatePoiIconSizes() {
-    const zoom = map.getZoom();
+    const zoom        = map.getZoom();
     const markerScale = Math.pow(2, zoom - REFERENCE_ZOOM);
-    const BASE = 32;
+    const BASE        = 32;
 
     poiMarkers.forEach(marker => {
         if (!marker.iconUrls?.length) return;
 
         const numIcons = marker.iconUrls.length;
-        const perW = Math.max(1, Math.round(BASE * markerScale));
-        const totalW = Math.max(1, Math.round(BASE * numIcons * markerScale));
+        const perW     = Math.max(1, Math.round(BASE * markerScale));
+        const totalW   = Math.max(1, Math.round(BASE * numIcons * markerScale));
 
         const html = marker.iconUrls
             .map(url => `<img src="${url}" style="width:${perW}px;height:${perW}px;float:left;">`)
@@ -375,14 +408,13 @@ function updatePoiIconSizes() {
 
         marker.setIcon(L.divIcon({
             html,
-            iconSize: [totalW, perW],
+            iconSize:   [totalW, perW],
             iconAnchor: [Math.round(totalW / 2), Math.round(perW / 2)],
-            className: 'custom-poi-icon',
+            className:  'custom-poi-icon',
         }));
     });
 }
 
-// Single handler for all zoom-dependent updates
 map.on('zoomend', () => {
     adjustTrailWeights();
     updatePoiIconSizes();
@@ -390,14 +422,13 @@ map.on('zoomend', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Data loading
-// Data is fully static and local — load once, never rebuild on pan/zoom.
+// Data loading — static and local, fetched once and cached
 // ---------------------------------------------------------------------------
 async function fetchData() {
     try {
         if (!cachedMapData) {
             const response = await fetch('assets/data.json');
-            cachedMapData = await response.json();
+            cachedMapData  = await response.json();
         }
 
         const data = cachedMapData;
@@ -409,8 +440,7 @@ async function fetchData() {
             }
         });
 
-        // Reset layer arrays
-        poiMarkers = [];
+        poiMarkers    = [];
         trailPolylines = [];
         trailWhiteLines = [];
 
@@ -419,29 +449,29 @@ async function fetchData() {
             const latLngs = trail.coordinates.map(([lat, lng]) => L.latLng(lat, lng));
 
             const polyline = L.polyline(latLngs, {
-                color: 'black',
-                weight: 12,
-                opacity: 1,
+                color:        'black',
+                weight:       12,
+                opacity:      1,
                 smoothFactor: 1,
             }).addTo(map);
             trailPolylines.push(polyline);
 
             const whiteLine = L.polyline(latLngs, {
-                color: TRAIL_COLOR_MAP[trail.difficulty],
-                weight: 12,
-                opacity: 1,
+                color:        TRAIL_COLOR_MAP[trail.difficulty],
+                weight:       12,
+                opacity:      1,
                 smoothFactor: 1,
             }).addTo(map);
             trailWhiteLines.push(whiteLine);
 
             polyline.setText(trail.name + '                                ', {
-                repeat: true,
-                offset: 3,
-                center: true,
+                repeat:     true,
+                offset:     3,
+                center:     true,
                 attributes: {
-                    fill: 'white',
+                    fill:          'white',
                     'font-weight': 'bold',
-                    'font-size': '10px',
+                    'font-size':   '10px',
                 },
             });
 
@@ -452,8 +482,8 @@ async function fetchData() {
                     .setContent(
                         `<h2 style="margin-bottom:0">${trail.name}</h2>` +
                         `<h4 style="margin:5px 0">${TRAIL_TEXT_MAP[trail.difficulty]}</h4>` +
-                        `<p style="margin-bottom: 0px;" >Location: ${MAPLE.encodeCoords(lat, lng)}</p>` +
-                        `<p style="margin-top: 0px;" >LATLNG: ${lat}, ${lng}</p>` +
+                        `<p style="margin-bottom:0">Location: ${MAPLE.encodeCoords(lat, lng)}</p>` +
+                        `<p style="margin-top:0">LATLNG: ${lat}, ${lng}</p>` +
                         `<button onclick="makeReport(${lat},${lng})">Make a report here</button>`
                     )
                     .openOn(map);
@@ -463,51 +493,48 @@ async function fetchData() {
         adjustTrailWeights();
 
         // --- Points of Interest ---
-        const zoom = map.getZoom();
+        const zoom        = map.getZoom();
         const markerScale = Math.pow(2, zoom - REFERENCE_ZOOM);
-        const offset = TOOLTIP_OFFSETS[zoom] ?? TOOLTIP_OFFSETS[REFERENCE_ZOOM];
+        const offset      = TOOLTIP_OFFSETS[zoom] ?? TOOLTIP_OFFSETS[REFERENCE_ZOOM];
 
         data.pointsOfInterest.forEach(poi => {
-            const types = poi.type.split(',').map(t => t.trim());
+            const types    = poi.type.split(',').map(t => t.trim());
             const iconUrls = types.map(type => {
-                const url = `assets/poi_icons/${type}.png`;
+                const url        = `assets/poi_icons/${type}.png`;
                 cachedIcons[url] = cachedIcons[url] || url;
                 return cachedIcons[url];
             });
 
             const BASE_ICON_SIZE = 32;
-            const totalW = BASE_ICON_SIZE * types.length;
-            const perIconW = Math.max(1, Math.round(BASE_ICON_SIZE * markerScale));
-            const perIconH = perIconW;
-            const scaledW = Math.max(1, Math.round(totalW * markerScale));
-            const scaledH = perIconH;
+            const totalW         = BASE_ICON_SIZE * types.length;
+            const perIconW       = Math.max(1, Math.round(BASE_ICON_SIZE * markerScale));
+            const scaledW        = Math.max(1, Math.round(totalW * markerScale));
 
             const iconHtml = iconUrls
-                .map(url => `<img src="${url}" style="width:${perIconW}px;height:${perIconH}px;float:left;">`)
+                .map(url => `<img src="${url}" style="width:${perIconW}px;height:${perIconW}px;float:left;">`)
                 .join('');
 
             const icon = L.divIcon({
-                html: iconHtml,
-                iconSize: [scaledW, scaledH],
-                iconAnchor: [Math.round(scaledW / 2), Math.round(scaledH / 2)],
-                className: 'custom-poi-icon',
+                html:       iconHtml,
+                iconSize:   [scaledW, perIconW],
+                iconAnchor: [Math.round(scaledW / 2), Math.round(perIconW / 2)],
+                className:  'custom-poi-icon',
             });
 
             const marker = L.marker(poi.coordinates, { icon }).addTo(map);
             marker.setZIndexOffset(2000);
             marker.tooltipContent = poi.name;
-            marker.baseFont = POI_TOOLTIP_BASE_FONT;
-            marker.baseSize = [totalW, BASE_ICON_SIZE];
-            marker.iconUrls = iconUrls;       // stored so zoom can rebuild the icon
+            marker.baseFont       = POI_TOOLTIP_BASE_FONT;
+            marker.baseSize       = [totalW, BASE_ICON_SIZE];
+            marker.iconUrls       = iconUrls;
 
             if (zoom >= REFERENCE_ZOOM) {
                 marker.bindTooltip(poi.name, {
-                    permanent: true,
-                    direction: 'center',
-                    className: 'poiLabel',
+                    permanent:  true,
+                    direction:  'center',
+                    className:  'poiLabel',
                     offset,
                 });
-                // Apply font size after element renders
                 setTimeout(() => {
                     const el = marker.getTooltip()?.getElement?.();
                     if (el) {
@@ -527,8 +554,8 @@ async function fetchData() {
                         `<h2 style="margin-bottom:0">${poi.name}</h2>` +
                         `<h4 style="margin:5px 0">${typeLabel}</h4>` +
                         `<p style="margin-top:0">Open: ${POI_TEXT_MAP[poi.opperation_time] || poi.opperation_time}</p>` +
-                        `<p style="margin-bottom: 0px;" >Location: ${MAPLE.encodeCoords(poi.coordinates[0], poi.coordinates[1])}</p>` +
-                        `<p style="margin-top: 0px;" >LATLNG: ${poi.coordinates[0]}, ${poi.coordinates[1]}</p>` +
+                        `<p style="margin-bottom:0">Location: ${MAPLE.encodeCoords(poi.coordinates[0], poi.coordinates[1])}</p>` +
+                        `<p style="margin-top:0">LATLNG: ${poi.coordinates[0]}, ${poi.coordinates[1]}</p>` +
                         `<button onclick="makeReport(${poi.coordinates[0]},${poi.coordinates[1]})">Make a report here</button>`
                     )
             );
@@ -543,36 +570,11 @@ async function fetchData() {
     }
 }
 
-// Load map data once on startup — all data is static and local
 fetchData();
 
 // ---------------------------------------------------------------------------
 // Geolocation & user marker
 // ---------------------------------------------------------------------------
-
-/** Lazily create or retrieve the speed display element. */
-function getSpeedElement() {
-    if (speedElement) return speedElement;
-
-    speedElement = document.getElementById('speed_reading');
-    if (!speedElement) {
-        speedElement = document.createElement('h2');
-        speedElement.id = 'speed_reading';
-        Object.assign(speedElement.style, {
-            position: 'absolute',
-            top: '10px',
-            right: '10px',
-            margin: '0',
-            padding: '4px 8px',
-            background: 'rgba(255,255,255,0.8)',
-            borderRadius: '4px',
-            zIndex: '1001',
-        });
-        speedElement.innerText = '--.-';
-        document.body.appendChild(speedElement);
-    }
-    return speedElement;
-}
 
 /** Convert m/s to a formatted mph string, or null if unavailable. */
 function formatSpeed(speedMps) {
@@ -601,28 +603,30 @@ function updateLocalUserLocation(position) {
     }
 
     const formattedSpeed = formatSpeed(speedMps) ?? '--.-';
-    getSpeedElement().innerText = formattedSpeed;
+
+    // Use cached DOM reference — was lazily created before
+    if (DOM.speedReading) DOM.speedReading.textContent = formattedSpeed;
 
     const popupContent =
         `<h2 style="margin-bottom:5px">Your latest location</h2>` +
-        `<p style="margin-bottom: 0px;" >Location: ${MAPLE.encodeCoords(lat, lng)}</p>` +
-        `<p style="margin-top: 0px;" >LATLNG: ${lat}, ${lng}</p>` +
-        `<p style="margin-bottom: 0px;" >Direction: ${degreesToCompass(currentOrientation)} / ${currentOrientation}</p>` +
-        `<p style="margin-top: 0px;" >Speed: ${formattedSpeed}</p>` +
-        `<button onclick="makeReport(${lat},${lng})">Make a report here</button>`
-    // --- Update or create the local user marker ---
-    // Capture distance BEFORE updating the marker position (fixes a bug where
-    // comparing against the already-moved marker always returned 0).
-    const prevLatLng = allUsersLocations.localUser?.getLatLng?.();
-    const movedDist = prevLatLng ? L.latLng(lat, lng).distanceTo(prevLatLng) : Infinity;
+        `<p style="margin-bottom:0">Location: ${MAPLE.encodeCoords(lat, lng)}</p>` +
+        `<p style="margin-top:0">LATLNG: ${lat}, ${lng}</p>` +
+        `<p style="margin-bottom:0">Direction: ${degreesToCompass(currentOrientation)} / ${currentOrientation}</p>` +
+        `<p style="margin-top:0">Speed: ${formattedSpeed}</p>` +
+        `<button onclick="makeReport(${lat},${lng})">Make a report here</button>`;
+
+    // Capture previous position BEFORE updating marker (avoids always-zero distance bug)
+    const prevLatLng  = allUsersLocations.localUser?.getLatLng?.();
+    const movedDist   = prevLatLng ? L.latLng(lat, lng).distanceTo(prevLatLng) : Infinity;
 
     if (allUsersLocations.localUser) {
         allUsersLocations.localUser.setLatLng([lat, lng]);
         allUsersLocations.localUser.getPopup()?.setContent(popupContent);
     } else {
+        // Create marker once — rotation is updated cheaply via updateMarkerRotation()
         allUsersLocations.localUser = L.marker([lat, lng], {
-            icon: createDirectionIcon(0),
-            pane: 'userPane',
+            icon:  createDirectionIcon(0),
+            pane:  'userPane',
         })
             .addTo(map)
             .bindPopup(
@@ -631,20 +635,19 @@ function updateLocalUserLocation(position) {
             );
     }
 
-    // Save current position for the next speed calculation
     lastLocalPosition = { lat, lng, time: position.timestamp || Date.now() };
 
-    // --- Follow mode: re-center map on user if enabled ---
+    // Follow mode: re-center map on user if enabled
     if (!DOM.followToggle.checked) return;
 
-    const now = Date.now();
+    const now     = Date.now();
     const tooSoon = (now - lastFollowSetTime) < FOLLOW_SET_MIN_MS;
 
     if (movedDist >= FOLLOW_MIN_DIST_METERS || !tooSoon) {
         suppressMoveendFetch = true;
         map.setView([lat, lng]);
         lastFollowSetTime = now;
-        // Safety: clear the suppress flag if moveend never fires
+        // Safety: clear suppress flag if moveend never fires
         setTimeout(() => { suppressMoveendFetch = false; }, 1000);
     }
 }
@@ -657,7 +660,7 @@ function handleLocationError(error) {
 if (navigator.geolocation) {
     navigator.geolocation.watchPosition(updateLocalUserLocation, handleLocationError, {
         enableHighAccuracy: true,
-        maximumAge: 500,
+        maximumAge:         500,
     });
 } else {
     alert('Geolocation is not supported by your browser.');
@@ -665,52 +668,42 @@ if (navigator.geolocation) {
 
 // ---------------------------------------------------------------------------
 // Popup persistence across map moves
+// Track only layers that have open popups — avoids iterating all layers
 // ---------------------------------------------------------------------------
-let openPopupNames = [];
 
-function extractNameFromPopupContent(content) {
-    if (!content) return null;
-    const match = content.match(/^([^<]*)<br/i);
-    return match?.[1]?.trim() ?? content.trim();
-}
+/**
+ * Layers with open popups at movestart, keyed by their popup content string.
+ * Using a Set of layers is more direct than extracting names from HTML.
+ */
+let openPopupLayers = new Set();
 
 map.on('movestart', () => {
-    openPopupNames = [];
-    map.eachLayer(layer => {
-        if (layer.getPopup?.() && layer.isPopupOpen?.()) {
-            const name = extractNameFromPopupContent(layer.getPopup().getContent());
-            if (name) openPopupNames.push(name);
+    openPopupLayers.clear();
+
+    // Only POI markers and user marker can have open popups — skip trail iteration
+    [...poiMarkers, allUsersLocations.localUser].forEach(layer => {
+        if (layer?.getPopup?.() && layer?.isPopupOpen?.()) {
+            openPopupLayers.add(layer);
             layer.closePopup();
         }
     });
 });
 
 map.on('moveend', () => {
-    // Skip popup restore and suppress flag for follow-mode programmatic pans
     if (suppressMoveendFetch) {
         suppressMoveendFetch = false;
         return;
     }
 
-    if (!openPopupNames.length) return;
+    if (!openPopupLayers.size) return;
 
-    // Layers are stable (no rebuild on pan), so one timeout is sufficient
     setTimeout(() => {
-        map.eachLayer(layer => {
-            if (!layer.getPopup?.()) return;
-            const name = extractNameFromPopupContent(layer.getPopup().getContent());
-            if (openPopupNames.includes(name)) layer.openPopup();
-        });
-
-        poiMarkers.forEach(marker => {
-            if (!marker.getPopup?.()) return;
-            const name = extractNameFromPopupContent(marker.getPopup().getContent());
-            if (openPopupNames.includes(name) && !marker.isPopupOpen()) {
-                marker.openPopup();
+        openPopupLayers.forEach(layer => {
+            if (layer?.getPopup?.() && !layer.isPopupOpen?.()) {
+                layer.openPopup();
             }
         });
-
-        openPopupNames = [];
+        openPopupLayers.clear();
     }, 250);
 });
 
@@ -730,15 +723,10 @@ function showMapPopup(latlng) {
     setTimeout(() => {
         L.popup({ closeOnClick: true, autoClose: false, autoPan: false })
             .setLatLng(latlng)
-            .setContent(
-                `You have selected:<br>` +
-                `${MAPLE.encodeCoords(latlng.lat, latlng.lng)}<br>` +
-                `${latlng.lat}, ${latlng.lng}`
-            )
-            .setContent(
+            .setContent(                                    // Single setContent call (was called twice before, first was discarded)
                 `<h2 style="margin-bottom:5px">You have selected:</h2>` +
-                `<p style="margin-bottom: 0px;" >Location: ${MAPLE.encodeCoords(latlng.lat, latlng.lng)}</p>` +
-                `<p style="margin-top: 0px;" >LATLNG: ${latlng.lat}, ${latlng.lng}</p>` +
+                `<p style="margin-bottom:0">Location: ${MAPLE.encodeCoords(latlng.lat, latlng.lng)}</p>` +
+                `<p style="margin-top:0">LATLNG: ${latlng.lat}, ${latlng.lng}</p>` +
                 `<button onclick="makeReport(${latlng.lat},${latlng.lng})">Make a report here</button>`
             )
             .openOn(map);
@@ -748,53 +736,52 @@ function showMapPopup(latlng) {
 map.on('contextmenu', e => showMapPopup(e.latlng));
 
 // Triple-tap detection for touch devices
-let tapCount = 0;
+let tapCount    = 0;
 let lastTapTime = 0;
 
 map.getContainer().addEventListener('touchend', e => {
     const now = Date.now();
-    tapCount = (now - lastTapTime <= 500) ? tapCount + 1 : 1;
+    tapCount  = (now - lastTapTime <= 500) ? tapCount + 1 : 1;
     lastTapTime = now;
 
     if (tapCount === 3) {
-        const rect = map.getContainer().getBoundingClientRect();
+        const rect  = map.getContainer().getBoundingClientRect();
         const touch = e.changedTouches[0];
         const latlng = map.containerPointToLatLng(
             L.point(touch.clientX - rect.left, touch.clientY - rect.top)
         );
         showMapPopup(latlng);
-        e.preventDefault(); // Prevent default triple-tap zoom
+        e.preventDefault();
         tapCount = 0;
     }
 });
 
+// ---------------------------------------------------------------------------
+// Report submission
+// ---------------------------------------------------------------------------
 function makeReport(lat, lng) {
-    const location_name = prompt("Please give a name for this location.");
+    const location_name = prompt('Please give a name for this location.');
     if (location_name === null) return;
 
-    const url = 'https://easy-map.mattheis.ddns.net/windingtrails/makereport';
+    const url     = 'https://easy-map.mattheis.ddns.net/windingtrails/makereport';
     const payload = { name: location_name, coords: [lat, lng] };
 
     (async () => {
         try {
             const resp = await fetch(url, {
-                method: 'PUT',
+                method:  'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+                body:    JSON.stringify(payload),
             });
 
-            const ct = resp.headers.get('content-type') || '';
-            let out;
-            if (ct.includes('application/json')) {
-                const json = await resp.json();
-                out = JSON.stringify(json);
-            } else {
-                out = await resp.text();
-            }
+            const ct  = resp.headers.get('content-type') || '';
+            const out = ct.includes('application/json')
+                ? JSON.stringify(await resp.json())
+                : await resp.text();
 
             alert(out);
         } catch (err) {
-            alert('Error sending report: ' + (err && err.message ? err.message : err));
+            alert('Error sending report: ' + (err?.message ?? err));
         }
     })();
 }
