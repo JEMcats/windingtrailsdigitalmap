@@ -2,13 +2,6 @@ name: Publish Release
 
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag for the release'
-        required: true
-      title:
-        description: 'Title of the release'
-        required: true
 
 permissions:
   contents: write
@@ -19,6 +12,12 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
+
+      - name: Read version from file
+        run: |
+          version=$(<VERSION)
+          echo "TAG=$version" >> $GITHUB_ENV
+          echo "TITLE=$version" >> $GITHUB_ENV
 
       - name: Read Release Description from Markdown File
         run: |
@@ -42,11 +41,26 @@ jobs:
             prerelease=false
           fi
 
+          # Fetch auto-generated release notes from GitHub API
+          generated_notes=$(curl -s -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg tag "$tag" '{tag_name: $tag, target_commitish: "main"}')" \
+            https://api.github.com/repos/JEMcats/windingtrailsdigitalmap/releases/generate-notes \
+            | jq -r '.body')
+
+          # Append generated notes to description with a line break
+          full_description="$description"$'\n'"$generated_notes"
+
           curl -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "$(jq -n --arg tag "$tag" --arg title "$title" --arg description "$description" --argjson prerelease "$prerelease" \
-                '{tag_name: $tag, target_commitish: "main", name: $title, body: $description, draft: false, prerelease: $prerelease}')" \
+            -d "$(jq -n \
+                  --arg tag "$tag" \
+                  --arg title "$title" \
+                  --arg description "$full_description" \
+                  --argjson prerelease "$prerelease" \
+                  '{tag_name: $tag, target_commitish: "main", name: $title, body: $description, draft: false, prerelease: $prerelease}')" \
             https://api.github.com/repos/JEMcats/windingtrailsdigitalmap/releases \
             --output release.json
 
