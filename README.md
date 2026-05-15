@@ -35,11 +35,13 @@ https://easy-map.mattheis.ddns.net/maps/winding_trails/{z}/{x}/{y}.png
 or if you are looking to self-host, you can download from this repository under ```/assets/tiles.zip```
 
 ## Upcoming features
-- GPX route uploads (v1.1.0)
-- Report section of uploaded route (v1.2.0)
-- Search (v1.3.0)
-- Route planning (v1.4.0)
-- Turn-by-turn navigation (v1.5.0)
+|Feature|Predicted Release Version|
+|------|------|
+|GPX route uploads|v1.1.0|
+|Report section of uploaded route|v1.2.0|
+|Search|v1.3.0|
+|Route planning|v1.4.0|
+|Turn-by-turn navigation|v1.5.0|
 
 ## Contributing
 Make your own fork of the ```main``` branch
