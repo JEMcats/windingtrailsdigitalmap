@@ -13,14 +13,9 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Debug - List root files
-        run: |
-          echo "Working directory: $(pwd)"
-          ls -la
-
       - name: Read version from file
         run: |
-          version=$(<VERSION)
+          version=$(<version)
           echo "TAG=$version" >> $GITHUB_ENV
           echo "TITLE=$version" >> $GITHUB_ENV
 
