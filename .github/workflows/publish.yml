@@ -15,6 +15,10 @@ jobs:
 
       - name: Read version from file
         run: |
+          if [[ ! -f VERSION ]]; then
+            echo "ERROR: VERSION file not found at repo root"
+            exit 1
+          fi
           version=$(<VERSION)
           echo "TAG=$version" >> $GITHUB_ENV
           echo "TITLE=$version" >> $GITHUB_ENV
@@ -31,8 +35,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DESCRIPTION: ${{ env.DESCRIPTION }}
         run: |
-          tag="${{ github.event.inputs.tag }}"
-          title="${{ github.event.inputs.title }}"
+          # Use env vars set from VERSION file, not workflow inputs
+          tag="${{ env.TAG }}"
+          title="${{ env.TITLE }}"
           description="$DESCRIPTION"
 
           if [[ "$tag" == *Indev* ]]; then
@@ -71,7 +76,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           UPLOAD_URL: ${{ env.UPLOAD_URL }}
-          TITLE: ${{ github.event.inputs.title }}
+          TITLE: ${{ env.TITLE }}
         run: |
           upload_url="${UPLOAD_URL}?name=data-${TITLE}.json"
           curl -X POST \
