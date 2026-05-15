@@ -13,12 +13,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
+      - name: Debug - List root files
+        run: |
+          echo "Working directory: $(pwd)"
+          ls -la
+
       - name: Read version from file
         run: |
-          if [[ ! -f VERSION ]]; then
-            echo "ERROR: VERSION file not found at repo root"
-            exit 1
-          fi
           version=$(<VERSION)
           echo "TAG=$version" >> $GITHUB_ENV
           echo "TITLE=$version" >> $GITHUB_ENV
@@ -35,7 +36,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DESCRIPTION: ${{ env.DESCRIPTION }}
         run: |
-          # Use env vars set from VERSION file, not workflow inputs
           tag="${{ env.TAG }}"
           title="${{ env.TITLE }}"
           description="$DESCRIPTION"
