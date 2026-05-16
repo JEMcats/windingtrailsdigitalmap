@@ -271,7 +271,7 @@ function showMenuContentPage(selectedpage, openmenu, extradata) {
                     <div style="width: 100%; height: 40px; display: flex; flex-direction: row; align-items: center;"><img src="assets/icons/Info.png" style="height: 90%; aspect-ratio: 1/1; margin-right: 10px;"><h3>Info</h3></div>
                     </br>
                     <p>Made with care by JEMcats and Github Contributors</p>
-                    <p>${SCRIPT_VERSION}</p>
+                    <a href="https://github.com/JEMcats/windingtrailsdigitalmap/releases/tag/${SCRIPT_VERSION}" target="_blank" style="color: blue; text-decoration: underline;">${SCRIPT_VERSION}</a>
                 `
             break;
     }
