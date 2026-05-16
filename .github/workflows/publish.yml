@@ -15,7 +15,7 @@ jobs:
 
       - name: Read version from file
         run: |
-          version=$(<version)
+          version=$(<VERSION)
           echo "TAG=$version" >> $GITHUB_ENV
           echo "TITLE=$version" >> $GITHUB_ENV
 
