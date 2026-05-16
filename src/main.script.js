@@ -2,7 +2,7 @@
 
 //#region WINDING TRAILS DIGITAL MAP
 
-const SCRIPT_VERSION = 'v1.0.0-Stable';
+const SCRIPT_VERSION = 'v1.0.1-Stable';
 
 //#region INITIALIZATION: DOM Cache & Version Display
 
