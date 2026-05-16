@@ -178,7 +178,6 @@
          display: flex;
          align-items: center; /* Center the content vertically */
          flex-direction: column; /* Set flex direction to row */
-         padding-bottom: 0px;
          min-height: 0px;
          transition: 1s ease all;
          ">
@@ -239,6 +238,13 @@
             mscript.onload = () => console.log("Main script loaded and executed!");
             document.body.appendChild(mscript);
         });
+
+        const isStandalone = window.navigator.standalone === true;
+
+        // If running as installed app, put padding at the bottom so nothing gets cut off by rounded screen corners
+        if (isStandalone) {
+            document.getElementById('bottommenu').style.paddingBottom = '35px'
+        }
     </script>
 </body>
 
