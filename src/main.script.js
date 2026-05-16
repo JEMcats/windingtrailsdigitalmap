@@ -224,7 +224,7 @@ function showMenuContentPage(selectedpage, openmenu, extradata) {
         case 'info':
             DOM.menuContent.innerHTML = `
                     <h1>Map Info</h1>
-                    <p>This page was last updated on: May 15th, 2026</p>
+                    <p>This page was last updated on: May 16th, 2026</p>
                     <h2>Color Key</h2>
                     <div style="width: 100%; height: 75px; display: flex; flex-direction: row; align-items: center;"><div style="margin-right: 15px; height: 90%; aspect-ratio: 1 / 1; background-color: ${TRAIL_COLOR_MAP.purple}"></div><h2>${TRAIL_TEXT_MAP.purple}</h2></div>
                     </br>
@@ -270,8 +270,9 @@ function showMenuContentPage(selectedpage, openmenu, extradata) {
                     <div style="width: 100%; height: 40px; display: flex; flex-direction: row; align-items: center;"><img src="assets/icons/target.svg" style="height: 90%; aspect-ratio: 1/1; margin-right: 10px;"><h3>Follow location</h3></div>
                     <div style="width: 100%; height: 40px; display: flex; flex-direction: row; align-items: center;"><img src="assets/icons/Info.png" style="height: 90%; aspect-ratio: 1/1; margin-right: 10px;"><h3>Info</h3></div>
                     </br>
-                    <p>Made with care by JEMcats and Github Contributors</p>
+                    <p>Made with care by <a href="https://github.com/JEMcats/" target="_blank" style="color: blue; text-decoration: underline;">JEMcats</a> and our <a href="https://github.com/JEMcats/windingtrailsdigitalmap/graphs/contributors?all=1" target="_blank" style="color: blue; text-decoration: underline;">GitHub Contributors</a></p>
                     <a href="https://github.com/JEMcats/windingtrailsdigitalmap/releases/tag/${SCRIPT_VERSION}" target="_blank" style="color: blue; text-decoration: underline;">${SCRIPT_VERSION}</a>
+                    <a href="https://github.com/JEMcats/windingtrailsdigitalmap#winding-trails-digital-map" target="_blank"><img src="assets/icons/github.svg" style="cursor: pointer; width: 40px; height: 40px; margin-top: 10px;"></a>
                 `
             break;
     }
